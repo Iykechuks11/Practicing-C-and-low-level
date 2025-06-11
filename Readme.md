@@ -4,7 +4,9 @@
 
 - C
 - Assembly language (ARM)
-- How to write
+- How to write Makefile
+- Cryptography
+- Cryptanalysis
 
 ## Motivation
 
