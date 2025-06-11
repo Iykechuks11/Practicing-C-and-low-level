@@ -1,0 +1,2 @@
+Come to think of it, the hexadecimal bytes really aren’t very useful them-
+selves, either
