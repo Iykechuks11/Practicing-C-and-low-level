@@ -11,6 +11,7 @@ A chronicle of my practical journey with low-level. This repo contains codes and
 ## Some projects
 
 - [Pseudo-random number generator](/0x285_function_pointer/0x1_rand_example.c)
+- [Game of chance](/0x285_function_pointer/0x2_game_of_chance.c)
 
 ## Motivation
 

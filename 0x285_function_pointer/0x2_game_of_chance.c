@@ -17,7 +17,7 @@ struct user {
   int credits;
   int highscore;
   char name[100];
-  int (*current_game) ()
+  int (*current_game)();
 };
 
 // Function prototypes.
@@ -45,6 +45,51 @@ int main() {
 
   if (get_player_data() == -1)      // Try to read player data from file.
     register_new_player();          //If not found, register a new player.
+
+  while(choice != 7) {
+    printf("-=[ Game of Chance Menu ]=-\n");
+    printf("1 - Play the Pick a Number game\n");
+    printf("2 - Play the No Match Dealer game\n");
+    printf("3 - Play the Find the Ace game\n");
+    printf("4 - View current high score\n");
+    printf("5 - Change your user name\n");
+    printf("6 - Reset your account at 100 credits\n");
+    printf("7 - Quit\n");
+    printf("[Name: %s]\n", player.name);
+    printf("[You have %u credits] -> ", player.credits);
+    scanf("%d", &choice);
+
+    if ((choice < 1) || (choice > 7))
+      printf("\n[!!] The number %d is an invalid selection.\n\n", choice);
+    else if (choice < 4) {        // Otherwise, choice was a game of some sort.
+      if (choice != last_game) {  // If the function ptr isn't set,
+        if (choice == 1)          // then point it at the selected game
+          player.current_game = pick_a_number;
+          // puts("I am here");
+        else if (choice == 2)
+          player.current_game = dealer_no_match;
+        else
+          player.current_game = find_the_ace;
+        last_game = choice;       // and set last game.
+      }
+      play_the_game();            // Play the game
+    }
+    else if (choice == 4)
+      show_highscore();
+    else if (choice == 5) {
+      // Let's test here <------------
+      puts("\nChange user name\n");
+      puts("Enter your new name");
+      input_name();
+      puts("Your name has been chnaged.\n\n");
+    }
+    else if (choice == 6) {
+      printf("\nYour account has been reset with 100 credits.\n\n");
+      player.credits = 100;
+    }
+  }
+  update_player_data();
+  printf("\nThanks for playing! Bye.\n");
 }
 
 int get_player_data() {
@@ -59,7 +104,7 @@ int get_player_data() {
   uid = getuid();
 
   fd = open(DATAFILE, O_RDONLY);
-  printf("%d\n", fd);
+  printf("%d\n", fd);     // Stopped here = 3 
   if (fd == -1)     // Can't open the file, maybe it doesn't exist.
     return -1;
   read_bytes = read(fd, &entry, sizeof(struct user));     // Read the first chunk.
@@ -112,3 +157,101 @@ void input_name() {
   }
   *name_ptr = 0;      // Terminate the string.
 }
+
+// This function simply awards the jackpot for the Pick a Number game.
+void jackpot() {
+  puts("*+*+*+*+*+* JACKPOT *+*+*+*+*+*\n");
+  puts("You have won the jackpot of 100 credits!\n");
+  player.credits += 100;
+}
+
+// This function is the Pick a Number game.
+// It returns -1 if the player doesn't have enough credits.
+int pick_a_number() {
+  int pick, winning_number;
+
+  printf("\n####### Pick a Number ######\n");
+  printf("This game costs 10 credits to play. Simply pick a number\n");
+  printf("between 1 and 20, and if you pick the winning number, you\n");
+  printf("will win the jackpot of 100 credits!\n\n");
+  winning_number = (rand() % 20) + 1;      // Pick a number between 1 and 20.
+  printf("winning number = %d\n", winning_number);
+  if (player.credits < 10)
+  {
+    printf("You only have %d credits. That's not enough to play!\n\n", player.credits);
+    return -1;      // Not enough credits to play.
+  }
+  player.credits -= 10;     // Deduct 10 credits.
+  puts("10 credits have been deducted from your account.\n");
+  puts("Pick a number between 1 and 20: ");
+  scanf("%d", &pick);
+
+  printf("The winning number is %d\n", winning_number);
+  if (pick == winning_number)
+    jackpot();
+  else
+    puts("Sorry, you didn't win.\n");
+  return 0;
+}
+
+int dealer_no_match() {
+  puts("Hello World!");
+}
+
+int find_the_ace() {
+  return 1;
+}
+
+// This function writes the current player data to the file.
+// It is used primarily for updating the credits after games.
+void update_player_data() {
+  int fd, i, read_uid;
+  char burned_byte;
+
+  fd = open(DATAFILE, O_RDWR);
+  if (fd == -1)     // If open fails here, something is really wrong.
+    fatal("In update_player_data() while opening file");
+  // puts("I am here");
+  // close(fd);
+  read(fd, &read_uid, 4);     // Read the uid from the first struct.
+  while (read_uid != player.uid) {      // Loop until correct uid is found
+    for (i = 0; i < sizeof(struct user) - 4; i++)       // Read through the
+      read(fd, &burned_byte, 1);                        // rest of that struct.
+    read(fd, &read_uid, 4);
+  }
+  write(fd, &(player.credits), 4);      // Update credits.
+  write(fd, &(player.highscore), 4);    // Update highscore.
+  write(fd, &(player.name), 100);       // Update name/
+  close(fd);
+}
+
+// This function contains a loop to allow the current game to be
+// played again. It also writes the new credit totals to file
+// after each game is played.
+void play_the_game() {
+  int play_again = 1;
+  int (*game)();
+  char selection;
+
+  while (play_again) {
+    printf("\n[DEBUG] current_game pointer @ 0x%08x\n", player.current_game);
+    if (player.current_game() != -1) {        // If the game plays without error and
+      if (player.credits > player.highscore)  // a new high score is set,
+        player.highscore = player.credits;    // update the highscore.
+      printf("\nYou now have %u credits\n", player.credits);
+      update_player_data();                   //Write the new credit total to file.
+      puts("Would you like to play again (y/n)");
+      selection = '\n';
+      while (selection == '\n')               // Flush any extra newlines.
+        scanf("%c", &selection);
+      if (selection == 'n')
+        play_again = 0;
+    }
+    else                  // This means the game returned an error,
+      play_again = 0;     // so return to main menu.
+  }
+}
+
+void show_highscore() {
+}
+
