@@ -104,8 +104,7 @@ int get_player_data() {
   uid = getuid();
 
   fd = open(DATAFILE, O_RDONLY);
-  printf("%d\n", fd);     // Stopped here = 3 
-  if (fd == -1)     // Can't open the file, maybe it doesn't exist.
+  if (fd == -1)     // Can't open the file, maybe it doesn't exist. >> fixed
     return -1;
   read_bytes = read(fd, &entry, sizeof(struct user));     // Read the first chunk.
   while (entry.uid != uid && read_bytes > 0)              // Loop until proper uid is found.
@@ -165,7 +164,33 @@ void jackpot() {
   player.credits += 100;
 }
 
-// This function is the Pick a Number game.
+// This function inputs wagers for both the No Match Dealer game and
+// Find the Ace games. It expects the available credits and the previous wager
+// as arguments. The previous_wager is also important for the second wager in the
+// Find the Ace game. The function returns -1 if the wager is too big or too little
+// and it returns the wager amount otherwise.
+int take_wager(int available_credits, int previous_wager) {
+  int wager, total_wager;
+
+  printf("How many of your %d credits would you like to wager? ", available_credits);
+  scanf("%d", &wager);
+  if (wager < 1) {      // Make sure the wager is greater than 0.
+    puts("Nice try, but you must wager a positive number!");
+    return -1;
+  }
+
+  total_wager = previous_wager + wager;
+
+  if (total_wager > available_credits) {      // Confirm available credits
+    printf("The wager of %d you are offering is more than you have!\n", total_wager);
+    printf("You credit balance is %d, try again.\n", available_credits);
+    return -1;
+  }
+
+  return wager;
+}
+
+// GAME 1: This function is the Pick a Number game.
 // It returns -1 if the player doesn't have enough credits.
 int pick_a_number() {
   int pick, winning_number;
@@ -194,8 +219,48 @@ int pick_a_number() {
   return 0;
 }
 
+// GAME 2: This is the No Match Dealer game.
+// It returns -1 if the player has 0 credits.
 int dealer_no_match() {
-  puts("Hello World!");
+  int i, j, numbers[16], wager = -1, match = -1;
+
+  puts("::::::: No Match Dealer :::::::");
+  puts("In this game, you can wager up to all of your credits.");
+  puts("The dealer will deal out 16 random numbers between 0 and 99.");
+  puts("If there are no matches among them, you double your money!");
+
+  if (player.credits == 0) {
+    puts("You don't have any credits to wayer!");
+    return -1;
+  }
+
+  while (wager == -1)
+    wager = take_wager(player.credits, 0);
+
+  puts("\t\t::: Dealing out 16 random numbers :::");
+  for (i = 0; i < 16; i++) {
+    numbers[i] = rand() % 100;     // Pick a number between 0 and 99.
+    printf("%2d\t", numbers[i]);
+    if (i % 8 == 7)                // Print a line break every 8 numbers.
+      puts("");
+  }
+  for (i = 0; i < 15; i++) {       // Loop looking for matches: sweet search algorithm
+    j = i + 1;
+    while (j < 16) {
+      if (numbers[i] == numbers[j])
+        match = numbers[i];       // All we need to find is just one match, and that's it
+      j++;
+    }
+  }
+  if(match != -1) {
+    printf("The dealer matched the number %d!\n", match);
+    printf("You lose %d credits.\n", wager);
+    player.credits -= wager;
+  } else {
+    printf("There were no matches! You win %d credits!\n", wager);
+    player.credits += wager;
+  }
+  return 0;
 }
 
 int find_the_ace() {
